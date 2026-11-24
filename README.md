@@ -6,9 +6,12 @@ downloaded, transcribed locally and sent to Gemini Flash to build the quiz.
 
 Status: project setup. API endpoints are added step by step.
 
+See [Installation](#installation) to get started and the
+[development diary](DEVELOPMENT_DIARY.md) for verified progress and open work.
+
 ## Requirements
 
-- Python 3.12 (Whisper does not support newer versions reliably)
+- Python 3.12 (the version used for local setup and Whisper practice)
 - FFmpeg installed globally (required by yt-dlp and Whisper)
 - deno (JavaScript runtime used by yt-dlp)
 - A Gemini API key from https://ai.google.dev/
