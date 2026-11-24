@@ -1,0 +1,13 @@
+/.venv/
+/.env
+/.env.*
+!/.env.example
+*.sqlite3
+*.sqlite3-journal
+__pycache__/
+*.py[cod]
+/media/
+/tmp_audio/
+.DS_Store
+/.idea/
+/.vscode/
