@@ -60,3 +60,15 @@
   logout, token revocation and authentication tests in Day 4.
 - Continue updating this diary after every daily stage with completed changes,
   actual checks and results, remaining work and the next step.
+
+### Day 2 closeout – 24 November 2026
+
+- The technical setup stage is complete: the backend is published, the
+  supplied frontend is checked out separately, and its revision is recorded.
+- The installation guide, daily progress record and endpoint acceptance
+  reference are in place. Application endpoints remain unimplemented.
+- The working tree was clean before this closeout entry, and the Git
+  whitespace check passed. No application tests were rerun for this
+  documentation-only update.
+- Next session: confirm the outstanding learning notes, then begin Day 3
+  with registration and login using HttpOnly JWT cookies.
