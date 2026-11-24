@@ -59,5 +59,14 @@ The API runs at http://127.0.0.1:8000/api/.
 The frontend is provided separately by the Developer Akademie:
 https://github.com/Developer-Akademie-Backendkurs/project.Quizly
 
+Reviewed frontend revision: `ae8e8637e39d328e3b8a55670db77f121deffb49`.
+Keep its checkout in a separate directory, such as `../Quizly_Frontend`.
+Frontend files are not included in this backend repository.
+
 Start it with Live Server on http://127.0.0.1:5500 and open it through
 `127.0.0.1`, not `localhost`, so the authentication cookies are sent.
+
+## API reference
+
+The [official endpoint documentation](https://cdn.developerakademie.com/courses/Backend/EndpointDoku/index.html?name=quizly)
+defines the requests, responses and permissions used for acceptance checks.

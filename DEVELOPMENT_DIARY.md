@@ -23,6 +23,14 @@
   `dd66a8d` (`Set up Quizly Django backend`).
 - Published the existing setup commit to the public backend repository:
   <https://github.com/eddyfr3se/quizly-backend>.
+- Cloned the supplied frontend into the separate sibling directory
+  `Quizly_Frontend`, retaining its Academy remote. Reviewed source revision:
+  `ae8e8637e39d328e3b8a55670db77f121deffb49`.
+- Confirmed the frontend API address is `http://127.0.0.1:8000/api/`.
+  Frontend files remain outside the backend repository and its uploads.
+- Use the official endpoint documentation as the acceptance checklist.
+  No endpoint is marked complete until its responses and permissions pass
+  the relevant checks. All nine operations are currently pending.
 
 ### Verification on 24 November 2026
 
@@ -44,7 +52,7 @@
 
 ### Remaining work and next step
 
-- Provide the separate Quizly frontend and record its source version.
+- Start the separate frontend on port 5500 for the authentication browser checks.
 - Confirm the remaining learning notes before implementing authentication.
 - Replace the backend Gemini configuration placeholder before pipeline testing.
 - Create a local admin account before testing quiz and question management.
