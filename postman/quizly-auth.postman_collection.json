@@ -1,0 +1,1195 @@
+{
+  "info": {
+    "name": "Quizly Day 3 - Registration and login",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run only against a disposable local database. Each run creates one randomly named account. Credentials exist only as runtime variables; the collection stores no account password or token."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api/"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.variables.get('suffix')) {",
+          "  const suffix = pm.variables.replaceIn('{{$randomUUID}}').replace(/-/g, '');",
+          "  pm.variables.set('suffix', suffix);",
+          "  pm.variables.set('username', 'pm_' + suffix);",
+          "  pm.variables.set('email', 'pm_' + suffix + '@example.com');",
+          "  pm.variables.set('upper_email', ('pm_' + suffix + '@example.com').toUpperCase());",
+          "  pm.variables.set('password', pm.variables.replaceIn('{{$randomUUID}}') + pm.variables.replaceIn('{{$randomUUID}}'));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Register a new account",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"email\": \"{{email}}\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "pm.test('Exact registration response', () => pm.expect(pm.response.json()).to.eql({detail: 'User created successfully!'}));",
+              "pm.test('Registration does not log in', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Reject duplicate username",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"email\": \"other_{{suffix}}@example.com\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Username error', () => pm.expect(pm.response.json()).to.have.property('username'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Reject duplicate email ignoring case",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"other_{{suffix}}\", \"email\": \"{{upper_email}}\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Email error', () => pm.expect(pm.response.json()).to.have.property('email'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects missing username",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\": \"new_{{suffix}}@example.com\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('username'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects blank username",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"\", \"email\": \"new_{{suffix}}@example.com\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('username'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects null username",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": null, \"email\": \"new_{{suffix}}@example.com\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('username'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects missing email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('email'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects blank email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('email'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects null email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": null, \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('email'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects missing password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"new_{{suffix}}@example.com\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects blank password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"new_{{suffix}}@example.com\", \"password\": \"\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects null password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"new_{{suffix}}@example.com\", \"password\": null, \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects missing confirmed_password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"new_{{suffix}}@example.com\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('confirmed_password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects blank confirmed_password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"new_{{suffix}}@example.com\", \"password\": \"{{password}}\", \"confirmed_password\": \"\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('confirmed_password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects null confirmed_password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"new_{{suffix}}@example.com\", \"password\": \"{{password}}\", \"confirmed_password\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('confirmed_password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects password mismatch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"new_{{suffix}}@example.com\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}x\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Confirmation error', () => pm.expect(pm.response.json()).to.have.property('confirmed_password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects invalid email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"new_{{suffix}}\", \"email\": \"invalid\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Email error', () => pm.expect(pm.response.json()).to.have.property('email'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Register rejects malformed JSON",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wrong password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}x\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Generic credential error', () => pm.expect(pm.response.json()).to.eql({detail:'Invalid username or password.'}));",
+              "pm.test('Authentication challenge', () => pm.expect(pm.response.headers.get('WWW-Authenticate')).to.eql('Bearer'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Unknown user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"unknown_{{suffix}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Generic credential error', () => pm.expect(pm.response.json()).to.eql({detail:'Invalid username or password.'}));",
+              "pm.test('Authentication challenge', () => pm.expect(pm.response.headers.get('WWW-Authenticate')).to.eql('Bearer'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login rejects missing username",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('username'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login rejects blank username",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('username'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login rejects null username",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": null, \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('username'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login rejects missing password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login rejects blank password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login rejects null password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('password'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject foreign origin: register/",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "https://example.org"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"email\": \"{{email}}\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject null origin: register/",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "null"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"email\": \"{{email}}\", \"password\": \"{{password}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject GET: register/",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 405', () => pm.response.to.have.status(405));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject foreign origin: login/",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "https://example.org"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject null origin: login/",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "null"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject GET: login/",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 405', () => pm.response.to.have.status(405));",
+              "pm.test('No tokens issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login successfully with frontend origin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Origin",
+            "value": "http://127.0.0.1:5500"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const data = pm.response.json();",
+              "pm.test('Exact login fields', () => {pm.expect(Object.keys(data).sort()).to.eql(['detail','user']); pm.expect(data.detail).to.eql('Login successfully!'); pm.expect(Object.keys(data.user).sort()).to.eql(['email','id','username']); pm.expect(data.user.username).to.eql(pm.variables.get('username')); pm.expect(data.user.email).to.eql(pm.variables.get('email')); pm.expect(data.user.id).to.be.a('number');});",
+              "pm.test('Response is not cacheable', () => pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'));",
+              "const cookies = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value);",
+              "pm.test('Exactly two auth cookies', () => pm.expect(cookies).to.have.lengthOf(2));",
+              "for (const [name, type, lifetime] of [['access_token','access',300], ['refresh_token','refresh',86400]]) {",
+              "  const cookie = cookies.find(value => value.startsWith(name + '='));",
+              "  pm.test(name + ' cookie policy', () => {pm.expect(cookie).to.include('HttpOnly'); pm.expect(cookie).to.include('SameSite=Lax'); pm.expect(cookie).to.include('Path=/'); pm.expect(cookie).to.include('Max-Age=' + lifetime); pm.expect(cookie).not.to.include('Secure');});",
+              "  const token = cookie.split(';')[0].slice(name.length + 1);",
+              "  const payload = JSON.parse(require('buffer').Buffer.from(token.split('.')[1], 'base64').toString());",
+              "  pm.test(name + ' claims', () => {pm.expect(payload.token_type).to.eql(type); pm.expect(String(payload.user_id)).to.eql(String(data.user.id)); pm.expect(payload.exp - payload.iat).to.eql(lifetime);});",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

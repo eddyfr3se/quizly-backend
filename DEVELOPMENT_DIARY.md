@@ -72,3 +72,30 @@
   documentation-only update.
 - Next session: confirm the outstanding learning notes, then begin Day 3
   with registration and login using HttpOnly JWT cookies.
+
+## Day 3 – Registration and cookie login – 25 November 2026
+
+- Implemented public registration with explicit serializer fields, duplicate
+  username/email checks and exact password confirmation. Django hashes passwords.
+- Implemented username/password login with the documented account response.
+  Wrong credentials and inactive accounts receive the same HTTP 401 message.
+- Added HttpOnly access/refresh cookies with lifetimes of 5 minutes and 1 day,
+  SameSite=Lax, host-only scope and Secure outside local debug mode.
+- Kept token values out of JSON responses and disabled login-response caching.
+- Restricted browser authentication requests to trusted origins. Kept helpers
+  outside views and added short English class and method docstrings.
+- Added 23 Django tests and a reusable Postman collection containing 33 requests.
+  The Postman run passed all 99 assertions using a disposable database on port
+  8001; the existing development database on port 8000 was not changed.
+- Checked migration consistency, PEP 8 for new API/tests, function lengths
+  and Git whitespace. Detailed scope is in `postman/TEST_RESULTS.md`.
+- Checked off registration and login in the official endpoint documentation
+  in Safari. The remaining seven operations are still open.
+- Checked frontend registration and login in a separate test browser using a
+  temporary frontend copy pointing to the disposable backend. Both redirects
+  worked. Browser storage contained both HttpOnly cookies, and JavaScript
+  could not read them. The quiz-list request still returned the expected 404.
+- Protected cookie authentication, refresh, logout and immediate token
+  revocation are next on Day 4. The complete quiz workflow remains pending.
+- Closed the test browser and stopped both temporary servers after the checks;
+  their disposable database and frontend copy were removed automatically.
