@@ -4,8 +4,8 @@ Django REST backend for the Quizly frontend of the Developer Akademie.
 It turns a YouTube URL into a quiz with ten questions: the audio track is
 downloaded, transcribed locally and sent to Gemini Flash to build the quiz.
 
-Status: registration and cookie login are implemented and tested.
-Refresh, logout and quiz endpoints are planned for the following stages.
+Status: registration, cookie authentication, refresh and logout are implemented
+and tested. Quiz endpoints are planned for the following stages.
 
 See [Installation](#installation) to get started and the
 [development diary](DEVELOPMENT_DIARY.md) for verified progress and open work.
@@ -85,8 +85,20 @@ defines the requests, responses and permissions used for acceptance checks.
   `DJANGO_DEBUG=True`. Browser clients must send `credentials: "include"`.
 - Authentication requests with an Origin header must come from the backend
   or a configured frontend origin. Other origins return HTTP 403.
-- Cookie authentication for protected endpoints, refresh and logout are
-  not implemented yet.
+- Protected API views authenticate through the `access_token` cookie.
+  Missing, invalid, expired or revoked credentials return HTTP 401.
+- `POST /api/token/refresh/`: an empty request with the `refresh_token` cookie
+  sets a new access cookie and returns `{"detail": "Token refreshed"}`.
+  It works even when the access cookie is absent or expired.
+- `POST /api/logout/`: revokes the current login, blacklists its refresh token
+  and deletes both cookies. A valid refresh cookie can complete logout when
+  access has expired. Other logins remain valid.
+
+Each login has a small server-side session record. Its identifier is included
+in both signed tokens. Logout removes this record, so all access tokens from
+that login are rejected immediately, including tokens issued by refresh.
+After upgrading from the initial cookie-login implementation, run migrations
+and log in again; older tokens have no session record.
 
 ## Tests
 
@@ -96,14 +108,22 @@ Run the Django tests in the activated backend environment:
 python manage.py test
 ```
 
-Import [the auth collection](postman/quizly-auth.postman_collection.json) into
-Postman or run it with the Postman CLI:
+For repeatable Postman checks, start the disposable test backend in a separate
+terminal with the backend environment activated:
 
 ```bash
-postman collection run postman/quizly-auth.postman_collection.json --no-report-events
+python -m auth_app.tests.server
 ```
 
-Run the collection against a disposable local database: each run creates a
-randomly named account. Credentials are generated at runtime. The collection's
-`base_url` defaults to `http://127.0.0.1:8000/api/` and can be overridden.
+It uses a temporary database on port 8001. Stop it with Ctrl+C after testing.
+Run the collections in order with the Postman CLI, or import them into Postman:
+
+```bash
+postman collection run postman/quizly-auth.postman_collection.json --env-var base_url=http://127.0.0.1:8001/api/ --no-report-events
+postman collection run postman/quizly-sessions.postman_collection.json --no-report-events
+```
+
+Each collection creates a randomly named account. Passwords and tokens exist
+only as runtime variables. The session collection uses a protected test probe
+that is available only on the disposable test server, not in the normal API.
 See [test results](postman/TEST_RESULTS.md) for the verified scope and counts.

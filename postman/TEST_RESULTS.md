@@ -1,5 +1,52 @@
 # Authentication test results
 
+## Day 4 – 26 November 2026
+
+Executed in order: initial Django suite, existing Postman regression, new
+session collection, browser workflow, then a final Django run including a
+check that the test probe is absent from the normal API. All checks passed.
+
+| Check | Result |
+| --- | --- |
+| Django suite | 50 tests passed |
+| Registration/login Postman regression | 33 requests, 99 assertions passed |
+| Session lifecycle Postman collection | 32 requests, 59 assertions passed |
+| Postman total | 65 requests, 158 assertions, zero failures |
+| Migration checks | Session and blacklist migrations applied; no pending model changes |
+| Code checks | Authentication files passed PEP 8; functions/methods at most 14 lines |
+| Browser | Registration, login, automatic refresh, logout and subsequent 401 responses passed |
+
+The Django tests cover missing, malformed, expired and wrong-type cookies,
+active-account checks, session ownership and expiry, origin restrictions,
+refresh without valid access, blacklist enforcement and immediate access
+revocation. They also verify that another login remains valid and the
+test-only probe is absent from the normal application URL configuration.
+
+Both Postman collections ran locally with reporting disabled, against a
+disposable database on port 8001. The session collection clears its cookie jar
+before each request and supplies only the selected runtime token fixtures.
+It verifies original and refreshed access tokens are rejected immediately
+after logout, refresh reuse fails, and a second login remains independent.
+Neither collection contains saved account credentials or token values.
+
+The browser used a temporary frontend copy on port 5500, pointing to the
+disposable backend on port 8001. Observed sequence after removing access:
+protected request 401, refresh 200, retried protected request 200. The library
+remained open and both cookies were HttpOnly. Logout via the frontend returned
+to login, removed both cookies, and subsequent protected/refresh calls were
+401. The quiz-list request still returns 404 until quiz endpoints are built.
+
+The protected probe is part of the test URL configuration only; no extra
+application endpoint was introduced. Test browser and temporary servers were
+closed after verification. Production-style cookie flags and expired-token
+cases were verified in Django tests; real HTTPS deployment was not tested.
+
+Refresh and logout were checked off in the official endpoint documentation
+in Safari. Four of nine documented operations are complete. No official
+Academy collection or full-project acceptance result is claimed.
+
+## Day 3 – Historical result
+
 Date: 25 November 2026. Scope: Day 3, registration and cookie login.
 
 | Check | Result |

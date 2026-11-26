@@ -1,0 +1,1275 @@
+{
+  "info": {
+    "name": "Quizly Day 4 - Session lifecycle",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Use the disposable server: python -m auth_app.tests.server. The test-session route is test-only and is not part of the application API. All credentials and tokens are runtime variables."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8001/api/"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.variables.get('suffix')) {",
+          "  const suffix = pm.variables.replaceIn('{{$randomUUID}}').replace(/-/g, '');",
+          "  pm.variables.set('suffix', suffix);",
+          "  pm.variables.set('username', 'pm_' + suffix);",
+          "  pm.variables.set('email', 'pm_' + suffix + '@example.com');",
+          "  pm.variables.set('upper_email', ('pm_' + suffix + '@example.com').toUpperCase());",
+          "  pm.variables.set('password', pm.variables.replaceIn('{{$randomUUID}}') + pm.variables.replaceIn('{{$randomUUID}}'));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Register isolated account",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}register/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\", \"email\": \"{{email}}\", \"confirmed_password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Login and remember tokens at runtime",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.variables.set('access_token', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('access_token=' )).value.split(';')[0].slice('access_token='.length));",
+              "pm.variables.set('refresh_token', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('refresh_token=' )).value.split(';')[0].slice('refresh_token='.length));",
+              "pm.variables.set('user_id', pm.response.json().user.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Protected request with access cookie",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Authenticated account', () => pm.expect(pm.response.json().user_id).to.eql(pm.variables.get('user_id')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 No cookie cannot authenticate",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Malformed access cannot authenticate",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token=invalid"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Refresh cannot be used as access",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{refresh_token}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Refresh with only refresh cookie",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{refresh_token}}"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Exact refresh response', () => pm.expect(pm.response.json()).to.eql({detail:'Token refreshed'}));",
+              "const cookies = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie');",
+              "pm.test('Only access is renewed', () => {pm.expect(cookies).to.have.lengthOf(1); pm.expect(cookies[0].value).to.include('access_token='); pm.expect(cookies[0].value).to.include('HttpOnly'); pm.expect(cookies[0].value).to.include('Max-Age=300'); pm.expect(cookies[0].value).to.include('SameSite=Lax');});",
+              "pm.variables.set('renewed_access', cookies[0].value.split(';')[0].slice('access_token='.length));",
+              "pm.test('New access token', () => pm.expect(pm.variables.get('renewed_access')).not.to.eql(pm.variables.get('access_token')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Renewed access authenticates",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{renewed_access}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Authenticated account', () => pm.expect(pm.response.json().user_id).to.eql(pm.variables.get('user_id')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Refresh ignores invalid access",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{refresh_token}}; access_token=invalid"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 No refresh cookie",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Access alone cannot refresh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token}}"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Body token cannot replace cookie",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"refresh\": \"{{refresh_token}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Malformed refresh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token=invalid"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Access cannot be used as refresh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{access_token}}"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Foreign origin cannot refresh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{refresh_token}}"
+          },
+          {
+            "key": "Origin",
+            "value": "https://example.org"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Foreign origin cannot log out",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token}}; refresh_token={{refresh_token}}"
+          },
+          {
+            "key": "Origin",
+            "value": "https://example.org"
+          }
+        ],
+        "url": "{{base_url}}logout/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Session survives foreign logout",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Authenticated account', () => pm.expect(pm.response.json().user_id).to.eql(pm.variables.get('user_id')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Second login stays independent",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.variables.set('access_token_other', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('access_token=' )).value.split(';')[0].slice('access_token='.length));",
+              "pm.variables.set('refresh_token_other', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('refresh_token=' )).value.split(';')[0].slice('refresh_token='.length));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 Logout first session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token}}; refresh_token={{refresh_token}}"
+          }
+        ],
+        "url": "{{base_url}}logout/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Exact logout response', () => pm.expect(pm.response.json()).to.eql({detail:'Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid.'}));",
+              "const cookies = pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value);",
+              "pm.test('Both cookies cleared', () => {pm.expect(cookies).to.have.lengthOf(2); for (const name of ['access_token','refresh_token']) {const cookie=cookies.find(h => h.startsWith(name+'=')); pm.expect(cookie).to.include('Max-Age=0'); pm.expect(cookie).to.include('Path=/'); pm.expect(cookie).to.include('SameSite=Lax');}});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 Original access revoked immediately",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 Renewed access revoked immediately",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{renewed_access}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 Original refresh cannot be reused",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{refresh_token}}"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 Repeated logout rejected",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token}}; refresh_token={{refresh_token}}"
+          }
+        ],
+        "url": "{{base_url}}logout/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24 Second session remains authenticated",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token_other}}; refresh_token={{refresh_token_other}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Authenticated account', () => pm.expect(pm.response.json().user_id).to.eql(pm.variables.get('user_id')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "25 Second session can still refresh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token_other}}; refresh_token={{refresh_token_other}}"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "26 Logout using only refresh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{refresh_token_other}}"
+          }
+        ],
+        "url": "{{base_url}}logout/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "27 Second access now revoked",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token_other}}"
+          }
+        ],
+        "url": "{{base_url}}test-session/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "28 Second refresh now revoked",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{refresh_token_other}}"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "29 No cookies cannot log out",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}logout/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "30 Login for access-only logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.variables.set('access_token_last', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('access_token=' )).value.split(';')[0].slice('access_token='.length));",
+              "pm.variables.set('refresh_token_last', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('refresh_token=' )).value.split(';')[0].slice('refresh_token='.length));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "31 Logout without refresh cookie",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{access_token_last}}"
+          }
+        ],
+        "url": "{{base_url}}logout/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "32 Missing-cookie refresh was also revoked",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "refresh_token={{refresh_token_last}}"
+          }
+        ],
+        "url": "{{base_url}}token/refresh/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+              "pm.test('No cookies issued', () => pm.expect(pm.response.headers.all().filter(h => h.key.toLowerCase() === 'set-cookie')).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

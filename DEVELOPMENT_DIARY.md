@@ -99,3 +99,29 @@
   revocation are next on Day 4. The complete quiz workflow remains pending.
 - Closed the test browser and stopped both temporary servers after the checks;
   their disposable database and frontend copy were removed automatically.
+
+## Day 4 – Cookie authentication, refresh and logout – 26 November 2026
+
+- Added access-cookie authentication with signature, expiry, account status
+  and server-side session checks. Protected requests without valid cookies
+  return HTTP 401; header-only credentials do not replace the cookie.
+- Added an active session record per login and enabled the refresh blacklist.
+  Logout removes the session and blacklists refresh, immediately invalidating
+  original and renewed access tokens. Other logins remain valid.
+- Implemented cookie refresh independently of access expiry. Logout can use
+  a valid refresh cookie if access is missing or expired. Browser writes from
+  untrusted origins are rejected before any token or session changes.
+- Applied the session and blacklist migrations to the development database.
+  Existing accounts were preserved. Earlier login cookies require a new login.
+- Ran checks in sequence: Django tests, the existing Postman regression,
+  the new session collection, then the browser workflow. Final results:
+  50 Django tests and 65 Postman requests with 158 assertions passed.
+- Verified automatic frontend refresh without a login redirect, logout back
+  to login, cookie deletion and HTTP 401 after logout. Used only disposable
+  test data and a temporary frontend copy; the supplied checkout is unchanged.
+- Added a reusable disposable test server. Its protected probe exists only
+  in the test URL configuration and is absent from the normal application API.
+- Checked off refresh and logout in the official endpoint documentation:
+  four of nine operations complete. Details are in `postman/TEST_RESULTS.md`.
+- Stopped the test browser and temporary servers. Next: Day 5, quiz/question
+  models, admin and owner-restricted list/detail/update/delete endpoints.
