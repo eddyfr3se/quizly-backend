@@ -5,7 +5,8 @@ It turns a YouTube URL into a quiz with ten questions: the audio track is
 downloaded, transcribed locally and sent to Gemini Flash to build the quiz.
 
 Status: registration, cookie authentication, refresh and logout are implemented
-and tested. Quiz endpoints are planned for the following stages.
+and tested. Quiz/question models and admin editing are available. Quiz API
+endpoints and owner permissions are the remaining half of Day 5.
 
 See [Installation](#installation) to get started and the
 [development diary](DEVELOPMENT_DIARY.md) for verified progress and open work.
@@ -99,6 +100,23 @@ in both signed tokens. Logout removes this record, so all access tokens from
 that login are rejected immediately, including tokens issued by refresh.
 After upgrading from the initial cookie-login implementation, run migrations
 and log in again; older tokens have no session record.
+
+## Quiz administration
+
+After migrating, create a local admin account:
+
+```bash
+python manage.py createsuperuser
+```
+
+Open `http://127.0.0.1:8000/admin/` to manage quizzes and individual questions.
+Quiz lists show owners and timestamps; both lists support searching. Question
+forms require four distinct nonempty answer strings and a matching correct
+answer. Timestamps are read-only.
+
+Quizzes can be prepared incrementally in the admin. The ten-question generation
+pipeline and quiz API checks are not implemented yet. Direct ORM writes must
+be validated explicitly; `save()` does not automatically call `full_clean()`.
 
 ## Tests
 

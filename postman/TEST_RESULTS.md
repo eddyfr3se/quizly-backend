@@ -1,4 +1,32 @@
-# Authentication test results
+# Test results
+
+## Day 5, first half – 27 November 2026
+
+Scope: quiz/question models, migration and Django admin. Quiz API endpoints
+and owner permissions are reserved for the second half.
+
+| Check | Result |
+| --- | --- |
+| Focused quiz suite | 13 tests passed |
+| Complete Django suite | 63 tests passed, including the 50 auth tests |
+| Migration | Initial quiz migration applied; no pending model changes |
+| Code checks | New quiz files passed PEP 8 and the 14-line function limit |
+| Admin browser check | Quiz metadata and an individual question edited and saved |
+
+Tests cover owner/quiz/question relationships, stable ordering, timestamps,
+independent option defaults and cascading deletion. Real admin form POSTs
+verify quiz changes, question creation/editing, rejection of invalid options
+or an answer outside the options, and denied access for a non-staff account.
+
+The browser check used a temporary database on port 8001 and a fictional admin.
+It confirmed persisted title/description edits, followed by a question-title
+and correct-answer edit. The browser and test server were closed afterwards.
+The regular development database received the schema migration only; no demo
+admin credentials or browser test data were added to it.
+
+No new API operation was completed in this half. The official API checklist
+remains at four of nine operations. Postman was not rerun for this models/admin
+change; the previous runs below remain historical results.
 
 ## Day 4 – 26 November 2026
 
