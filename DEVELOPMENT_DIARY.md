@@ -126,22 +126,15 @@
 - Stopped the test browser and temporary servers. Next: Day 5, quiz/question
   models, admin and owner-restricted list/detail/update/delete endpoints.
 
-## Day 5, first half – Models and admin – 27 November 2026
+## Day 5 – Quiz management – 27 November 2026
 
-- Completed only the agreed first half: Quiz and Question models, their
-  migration and admin management. The quiz API and owner permissions remain
-  for the second half.
-- Added ownership and quiz/question relations with cascading deletion,
-  creation/update timestamps, JSON answer options and stable ordering.
-- Registered both models in the admin with search, related-object selectors
-  and read-only timestamps. The question form validates four distinct
-  nonempty strings and requires the correct answer to match an option.
-- Applied the initial quiz migration. The focused quiz suite passed 13 tests;
-  the full Django suite passed 63 tests. Migration and code checks passed.
-- Verified quiz title/description and individual question/answer edits in a
-  browser using a disposable database and fictional admin on port 8001.
-  Closed the browser and stopped the test server afterwards.
-- Kept the frontend and private configuration outside the backend upload.
-  No new API checklist item is complete: four of nine operations remain done.
-- Stopping here as requested. Next session: nested serializers, list/detail,
-  PATCH and DELETE endpoints with owner permissions and their API tests.
+- Added Quiz/Question models, migration and searchable admin forms with
+  question-option and answer validation.
+- Implemented owned quiz lists and owner-only detail, PATCH and DELETE.
+  Foreign objects return 403; missing objects return 404. Only title and
+  description can be changed through the API.
+- Passed 78 Django tests and 36 Postman requests with 61 assertions. Checked
+  admin editing, frontend list/detail, persisted metadata edits and deletion
+  in the browser using disposable test data.
+- Updated the API checklist to eight of nine operations. Next: Day 6,
+  YouTube URL validation, audio download and local transcription.

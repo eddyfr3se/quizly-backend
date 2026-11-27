@@ -5,8 +5,8 @@ It turns a YouTube URL into a quiz with ten questions: the audio track is
 downloaded, transcribed locally and sent to Gemini Flash to build the quiz.
 
 Status: registration, cookie authentication, refresh and logout are implemented
-and tested. Quiz/question models and admin editing are available. Quiz API
-endpoints and owner permissions are the remaining half of Day 5.
+and tested. Quiz models, admin, owned lists and owner-restricted detail, update
+and deletion are available. Quiz generation is still pending.
 
 See [Installation](#installation) to get started and the
 [development diary](DEVELOPMENT_DIARY.md) for verified progress and open work.
@@ -115,7 +115,7 @@ forms require four distinct nonempty answer strings and a matching correct
 answer. Timestamps are read-only.
 
 Quizzes can be prepared incrementally in the admin. The ten-question generation
-pipeline and quiz API checks are not implemented yet. Direct ORM writes must
+pipeline is not implemented yet. Direct ORM writes must
 be validated explicitly; `save()` does not automatically call `full_clean()`.
 
 ## Tests
@@ -145,3 +145,25 @@ Each collection creates a randomly named account. Passwords and tokens exist
 only as runtime variables. The session collection uses a protected test probe
 that is available only on the disposable test server, not in the normal API.
 See [test results](postman/TEST_RESULTS.md) for the verified scope and counts.
+
+## Quiz API
+
+- `GET /api/quizzes/` returns an array of the current user's quizzes with questions.
+- `GET /api/quizzes/{id}/` returns the owned quiz with nested questions.
+- `PATCH /api/quizzes/{id}/` accepts `title` and/or `description` and returns
+  the full quiz. Other fields are rejected with HTTP 400.
+- `DELETE /api/quizzes/{id}/` returns an empty HTTP 204 and deletes its questions.
+
+All operations require the access cookie. Foreign quizzes return 403; missing
+quizzes return 404. Quiz generation (`POST /api/quizzes/`) is not available yet.
+
+For seeded quiz tests, start `python -m quiz_app.tests.server` in a separate
+terminal. It prints the path to a temporary environment file. Run:
+
+```bash
+postman collection run postman/quizly-quizzes.postman_collection.json --environment <printed-environment-path> --no-report-events
+```
+
+The fixture server creates two fictional owners and three quizzes in a
+fresh temporary database. Restart it before repeating the collection, which
+removes a deletion fixture. Credentials and test data are removed when it stops.

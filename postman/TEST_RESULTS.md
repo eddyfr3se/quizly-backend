@@ -1,32 +1,36 @@
 # Test results
 
-## Day 5, first half – 27 November 2026
-
-Scope: quiz/question models, migration and Django admin. Quiz API endpoints
-and owner permissions are reserved for the second half.
+## Day 5 – 27 November 2026
 
 | Check | Result |
 | --- | --- |
-| Focused quiz suite | 13 tests passed |
-| Complete Django suite | 63 tests passed, including the 50 auth tests |
-| Migration | Initial quiz migration applied; no pending model changes |
-| Code checks | New quiz files passed PEP 8 and the 14-line function limit |
-| Admin browser check | Quiz metadata and an individual question edited and saved |
+| Quiz tests | 28 passed: models, admin and API |
+| Complete Django suite | 78 tests passed, including the 50 auth tests |
+| Quiz Postman collection | 36 requests, 61 assertions, zero failures |
+| Migration and code checks | No pending model changes; PEP 8 and 14-line limit passed |
+| Browser | Admin edits, library/detail, metadata autosave and deletion passed |
 
-Tests cover owner/quiz/question relationships, stable ordering, timestamps,
-independent option defaults and cascading deletion. Real admin form POSTs
-verify quiz changes, question creation/editing, rejection of invalid options
-or an answer outside the options, and denied access for a non-staff account.
+The API tests cover exact nested response fields, array lists, ownership,
+401/403/404 behavior, partial updates, invalid and protected fields, empty
+204 responses, cascading deletion, origin restrictions and unsupported methods.
+Related question loading used the same query count for one and six quizzes.
+The storage/admin tests cover relationships, timestamps and question validation.
 
-The browser check used a temporary database on port 8001 and a fictional admin.
-It confirmed persisted title/description edits, followed by a question-title
-and correct-answer edit. The browser and test server were closed afterwards.
-The regular development database received the schema migration only; no demo
-admin credentials or browser test data were added to it.
+Postman used two owners and seeded quizzes on a disposable backend. It verified
+that denied writes left data intact and deletion did not affect foreign quizzes.
+Runtime credentials were kept in a temporary environment file, not the collection.
+Start `python -m quiz_app.tests.server` for repeatable seeded checks. Pass its
+printed environment path with `--environment` to the quiz collection. Restart
+this server before rerunning because the collection deletes its test fixture.
 
-No new API operation was completed in this half. The official API checklist
-remains at four of nine operations. Postman was not rerun for this models/admin
-change; the previous runs below remain historical results.
+Browser checks used a temporary frontend copy on port 5500 and backend on 8001.
+The library displayed only owned quizzes, the detail page loaded its embedded
+video, and title/description changes survived reloading. Deleting through the
+frontend returned 204 and removed the entry. Earlier admin edits were also
+verified in an isolated browser. No production test data was added.
+
+The four quiz read/update/delete operations were checked off in Safari:
+eight of nine documented operations complete. Quiz generation remains pending.
 
 ## Day 4 – 26 November 2026
 

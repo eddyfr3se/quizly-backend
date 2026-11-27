@@ -1,0 +1,1511 @@
+{
+  "info": {
+    "name": "Quizly - Quiz management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run against python -m quiz_app.tests.server with its temporary environment file. It supplies runtime-only accounts and quiz IDs. The deletion fixture is disposable."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8001/api/"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login owner",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.variables.set('owner_access', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('access_token=')).value.split(';')[0].slice('access_token='.length));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List contains only own quizzes",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Owned array', () => {const data=pm.response.json();pm.expect(data).to.be.an('array');pm.expect(data.map(q=>q.id).sort()).to.eql([Number(pm.variables.get('quiz_id')),Number(pm.variables.get('delete_quiz_id'))].sort());});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Read own quiz",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const quiz = pm.response.json();",
+              "pm.test('Exact quiz fields', () => pm.expect(Object.keys(quiz).sort()).to.eql(['created_at','description','id','questions','title','updated_at','video_url']));",
+              "pm.test('Ten nested fixture questions', () => {pm.expect(quiz.questions).to.have.lengthOf(10); for (const question of quiz.questions) {pm.expect(Object.keys(question).sort()).to.eql(['answer','id','question_options','question_title']); pm.expect(question.question_options).to.have.lengthOf(4); pm.expect(question.question_options).to.include(question.answer);}});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patch title only",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Postman updated title\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const quiz = pm.response.json();",
+              "pm.test('Exact quiz fields', () => pm.expect(Object.keys(quiz).sort()).to.eql(['created_at','description','id','questions','title','updated_at','video_url']));",
+              "pm.test('Ten nested fixture questions', () => {pm.expect(quiz.questions).to.have.lengthOf(10); for (const question of quiz.questions) {pm.expect(Object.keys(question).sort()).to.eql(['answer','id','question_options','question_title']); pm.expect(question.question_options).to.have.lengthOf(4); pm.expect(question.question_options).to.include(question.answer);}});",
+              "pm.test('Title changed', () => pm.expect(quiz.title).to.eql('Postman updated title'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patch description only",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"description\": \"Postman updated description\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const quiz = pm.response.json();",
+              "pm.test('Exact quiz fields', () => pm.expect(Object.keys(quiz).sort()).to.eql(['created_at','description','id','questions','title','updated_at','video_url']));",
+              "pm.test('Ten nested fixture questions', () => {pm.expect(quiz.questions).to.have.lengthOf(10); for (const question of quiz.questions) {pm.expect(Object.keys(question).sort()).to.eql(['answer','id','question_options','question_title']); pm.expect(question.question_options).to.have.lengthOf(4); pm.expect(question.question_options).to.include(question.answer);}});",
+              "pm.test('Other metadata retained', () => {pm.expect(quiz.title).to.eql('Postman updated title');pm.expect(quiz.description).to.eql('Postman updated description');});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid title ",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('title'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid title None",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('title'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid title xxxxxxxxxxxx",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('title'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid description None",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"description\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('description'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject protected field owner",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Must not save\", \"owner\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('owner'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject protected field video_url",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Must not save\", \"video_url\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('video_url'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject protected field questions",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Must not save\", \"questions\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('questions'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject protected field created_at",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Must not save\", \"created_at\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('created_at'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject protected field id",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Must not save\", \"id\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('id'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject protected field unknown",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Must not save\", \"unknown\": null}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Field error', () => pm.expect(pm.response.json()).to.have.property('unknown'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "No cookie GET quizzes/",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}quizzes/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "No cookie GET quizzes/{{quiz_id}}/",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "No cookie PATCH quizzes/{{quiz_id}}/",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "No cookie DELETE quizzes/{{quiz_id}}/",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missing quiz GET",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/999999/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missing quiz PATCH",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/999999/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missing quiz DELETE",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/999999/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login second owner",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}login/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"{{other_username}}\", \"password\": \"{{other_password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.variables.set('other_access', pm.response.headers.all().find(h => h.key.toLowerCase() === 'set-cookie' && h.value.startsWith('access_token=')).value.split(';')[0].slice('access_token='.length));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Second owner list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{other_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Foreign list isolated', () => pm.expect(pm.response.json().map(q=>q.id)).to.eql([Number(pm.variables.get('foreign_quiz_id'))]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Foreign quiz GET",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{other_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Foreign quiz PATCH",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{other_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Foreign quiz DELETE",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{other_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Denied updates kept data intact",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Previous metadata preserved', () => {pm.expect(pm.response.json().title).to.eql('Postman updated title');pm.expect(pm.response.json().description).to.eql('Postman updated description');});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Untrusted origin cannot edit",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          },
+          {
+            "key": "Origin",
+            "value": "https://example.org"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Must not save\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT not supported",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{quiz_id}}/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\": \"Not supported\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 405', () => pm.response.to.have.status(405));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Quiz generation still unavailable",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"url\": \"https://www.youtube.com/watch?v=jNQXAC9IVRw\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 405', () => pm.response.to.have.status(405));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete owned fixture",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{delete_quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 204', () => pm.response.to.have.status(204));",
+              "pm.test('Empty delete response', () => pm.expect(pm.response.text()).to.eql(''));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deleted fixture missing",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{delete_quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Repeated deletion missing",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{delete_quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Other owners quiz still exists",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{other_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/{{foreign_quiz_id}}/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const quiz = pm.response.json();",
+              "pm.test('Exact quiz fields', () => pm.expect(Object.keys(quiz).sort()).to.eql(['created_at','description','id','questions','title','updated_at','video_url']));",
+              "pm.test('Ten nested fixture questions', () => {pm.expect(quiz.questions).to.have.lengthOf(10); for (const question of quiz.questions) {pm.expect(Object.keys(question).sort()).to.eql(['answer','id','question_options','question_title']); pm.expect(question.question_options).to.have.lengthOf(4); pm.expect(question.question_options).to.include(question.answer);}});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List after deletion",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Cookie",
+            "value": "access_token={{owner_access}}"
+          }
+        ],
+        "url": "{{base_url}}quizzes/"
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.cookies.jar().clear(pm.variables.get('base_url'), (error) => {if (error) throw error;});"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Only surviving owned quiz', () => pm.expect(pm.response.json().map(q=>q.id)).to.eql([Number(pm.variables.get('quiz_id'))]));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
